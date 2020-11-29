@@ -13,7 +13,7 @@ if [ -n "${1}" ]; then
   exec "${*}"
 fi
 
-DEFAULT_ARGS="--http-port 8081 --dir=${TELEGRAM_WORK_DIR} --temp-dir=${TELEGRAM_TEMP_DIR}"
+DEFAULT_ARGS="--api-id=${TELEGRAM_API_ID} --api-hash=${TELEGRAM_API_HASH} --http-port 8081 --dir=${TELEGRAM_WORK_DIR} --temp-dir=${TELEGRAM_TEMP_DIR}"
 CUSTOM_ARGS=""
 
 if [ -n "$TELEGRAM_STAT" ]; then
@@ -45,6 +45,9 @@ if [ -n "$TELEGRAM_INSECURE" ]; then
 fi
 if [ -n "$TELEGRAM_RELATIVE" ]; then
   CUSTOM_ARGS="${CUSTOM_ARGS} --relative"
+fi
+if [ -n "$TELEGRAM_USER_MODE" ]; then
+  CUSTON_ARGS="${CUSTOM_ARGS} --user-mode"
 fi
 if [ -n "$TELEGRAM_MAX_BATCH" ]; then
   CUSTOM_ARGS="${CUSTOM_ARGS} ---max-batch-operations=$TELEGRAM_MAX_BATCH"
