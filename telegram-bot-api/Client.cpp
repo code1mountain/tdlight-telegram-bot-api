@@ -296,6 +296,7 @@ bool Client::init_methods() {
   methods_.emplace("togglegroupinvites", &Client::process_toggle_group_invites_query);
   methods_.emplace("ping", &Client::process_ping_query);
   methods_.emplace("getmemorystats", &Client::process_get_memory_stats_query);
+  methods_.emplace("parsetextentities", &Client::process_parse_text_entities_query);
 
 
   return true;
@@ -2313,6 +2314,22 @@ class Client::JsonStickerSet : public Jsonable {
 
  private:
   const td_api::stickerSet *sticker_set_;
+  const Client *client_;
+};
+
+class Client::JsonParsedText : public Jsonable {
+ public:
+  JsonParsedText(const td_api::formattedText *text, const Client *client) : text_(text), client_(client) {
+  }
+
+  void store(JsonValueScope *scope) const {
+    auto object = scope->enter_object();
+    object("text", td::VirtuallyJsonableString(text_->text_));
+    object("entities", JsonVectorEntities(text_->entities_, client_));
+  }
+
+ private:
+  const td_api::formattedText *text_;
   const Client *client_;
 };
 
@@ -7701,6 +7718,20 @@ td::Status Client::process_ping_query(PromisedQueryPtr &query) {
 td::Status Client::process_get_memory_stats_query(PromisedQueryPtr &query) {
   send_request(make_object<td_api::getMemoryStatistics>(),
                std::make_unique<TdOnGetMemoryStatisticsCallback>(std::move(query)));
+  return Status::OK();
+}
+
+td::Status Client::process_parse_text_entities_query(PromisedQueryPtr &query) {
+  JsonValue entities;
+  auto r_value = json_decode(query->arg("entities"));
+  if (r_value.is_ok()) {
+    entities = r_value.move_as_ok();
+  } else {
+    LOG(INFO) << "Can't parse JSON object: " << r_value.error();
+  }
+
+  TRY_RESULT(text, get_formatted_text(query->arg("text").str(), query->arg("parse_mode").str(), std::move(entities)));
+  answer_query(JsonParsedText(text.get(), this), std::move(query));
   return Status::OK();
 }
 //end custom methods impl

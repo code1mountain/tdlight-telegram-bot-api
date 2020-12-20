@@ -157,6 +157,8 @@ class Client : public WebhookActor::Callback {
   class JsonStickerSet;
   class JsonCustomJson;
 
+  class JsonParsedText;
+
   class TdOnOkCallback;
   class TdOnAuthorizationCallback;
   class TdOnAuthorizationQueryCallback;
@@ -510,6 +512,7 @@ class Client : public WebhookActor::Callback {
   Status process_toggle_group_invites_query(PromisedQueryPtr &query);
   Status process_ping_query(PromisedQueryPtr &query);
   Status process_get_memory_stats_query(PromisedQueryPtr &query);
+  Status process_parse_text_entities_query(PromisedQueryPtr &query);
 
   //custom auth methods
   void process_authcode_query(PromisedQueryPtr &query);
