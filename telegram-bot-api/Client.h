@@ -404,7 +404,7 @@ class Client : public WebhookActor::Callback {
   td::Result<td::vector<object_ptr<td_api::InputMessageContent>>> get_input_message_contents(
       const Query *query, td::JsonValue &&value) const;
 
-  static object_ptr<td_api::messageSendOptions> get_message_send_options(bool disable_notification);
+  static object_ptr<td_api::messageSendOptions> get_message_send_options(bool disable_notification, object_ptr<td_api::MessageSchedulingState> &&scheduling_state);
 
   static td::Result<td::vector<td::string>> get_poll_options(const Query *query);
 
@@ -419,6 +419,10 @@ class Client : public WebhookActor::Callback {
   static td::Result<Slice> get_inline_message_id(const Query *query, Slice field_name = Slice("inline_message_id"));
 
   static td::Result<int32> get_user_id(const Query *query, Slice field_name = Slice("user_id"));
+
+  // start custom get methods
+  static td::Result<object_ptr<td_api::MessageSchedulingState>> get_message_scheduling_state(const Query *query);
+  // end custom get methods
 
   int64 extract_yet_unsent_message_query_id(int64 chat_id, int64 message_id, bool *is_reply_to_message_deleted);
 
@@ -680,6 +684,8 @@ class Client : public WebhookActor::Callback {
     int32 views = 0;
     int32 forwards = 0;
 
+    bool is_scheduled = false;
+
     mutable bool is_reply_to_message_deleted = false;
     mutable bool is_content_changed = false;
   };
@@ -761,6 +767,8 @@ class Client : public WebhookActor::Callback {
   static int64 as_tdlib_message_id(int32 message_id);
 
   static int32 as_client_message_id(int64 message_id);
+
+  static int32 as_scheduled_message_id(int64 message_id);
 
   static int64 get_supergroup_chat_id(int32 supergroup_id);
 
