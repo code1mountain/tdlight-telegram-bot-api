@@ -157,6 +157,8 @@ class Client : public WebhookActor::Callback {
   class JsonStickerSet;
   class JsonCustomJson;
 
+  class JsonDownloadingFile;
+
   class TdOnOkCallback;
   class TdOnAuthorizationCallback;
   class TdOnAuthorizationQueryCallback;
@@ -790,6 +792,8 @@ class Client : public WebhookActor::Callback {
 
   void add_new_custom_query(object_ptr<td_api::updateNewCustomQuery> &&query);
 
+  void add_update_downloading_file(object_ptr<td_api::file> file);
+
   // append only before Size
   enum class UpdateType : int32 {
     Message,
@@ -805,6 +809,7 @@ class Client : public WebhookActor::Callback {
     PreCheckoutQuery,
     Poll,
     PollAnswer,
+    DownloadingFile,
     Size
   };
 
@@ -833,7 +838,7 @@ class Client : public WebhookActor::Callback {
   bool have_message_access(int64 chat_id) const;
 
   // by default all 13 update types up to PollAnswer are allowed
-  static constexpr td::uint32 DEFAULT_ALLOWED_UPDATE_TYPES = ((1 << 13) - 1);
+  static constexpr td::uint32 DEFAULT_ALLOWED_UPDATE_TYPES = ((1 << 14) - 1);
 
   object_ptr<td_api::AuthorizationState> authorization_state_;
   bool was_authorized_ = false;
@@ -877,6 +882,7 @@ class Client : public WebhookActor::Callback {
 
   std::unordered_map<int32, td::vector<PromisedQueryPtr>> file_download_listeners_;
   std::unordered_set<int32> download_started_file_ids_;
+  std::unordered_map<int32, int32> download_size_updates_;
 
   struct YetUnsentMessage {
     int64 reply_to_message_id = 0;

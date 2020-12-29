@@ -2316,6 +2316,25 @@ class Client::JsonStickerSet : public Jsonable {
   const Client *client_;
 };
 
+class Client::JsonDownloadingFile : public Jsonable {
+  public:
+   JsonDownloadingFile(const td_api::file *file, const Client *client) : file_(file), client_(client) {
+   }
+  void store(JsonValueScope *scope) const {
+    auto object = scope->enter_object();
+    object("path", file_->local_->path_);
+    object("file_id", file_->remote_->id_);
+    object("unique_id", file_->remote_->unique_id_);
+    object("is_downloading_complete", td::JsonBool(file_->local_->is_downloading_completed_));
+    object("is_downloading_active", td::JsonBool(file_->local_->is_downloading_active_));
+    object("downloaded_size", file_->local_->downloaded_size_);
+  }
+
+  private:
+    const td_api::file *file_;
+    const Client *client_;
+};
+
 class Client::TdOnOkCallback : public TdQueryCallback {
  public:
   void on_result(object_ptr<td_api::Object> result) override {
@@ -3969,6 +3988,15 @@ void Client::on_update_file(object_ptr<td_api::file> file) {
       error = Status::Error(CLOSING_ERROR_CODE, CLOSING_ERROR_DESCRIPTION);
     }
     return on_file_download(file_id, std::move(error));
+  }
+  auto it = download_size_updates_.find(file_id);
+  if (it == download_size_updates_.end()) {
+    download_size_updates_.emplace(file_id, file->local_->downloaded_size_);
+    return add_update_downloading_file(std::move(file));
+  }
+  if (download_size_updates_[file_id] + 1e6 < file->local_->downloaded_size_) {
+    download_size_updates_[file_id] = file->local_->downloaded_size_;
+    add_update_downloading_file(std::move(file));
   }
 }
 
@@ -8473,6 +8501,8 @@ Client::Slice Client::get_update_type_name(UpdateType update_type) {
       return Slice("poll");
     case UpdateType::PollAnswer:
       return Slice("poll_answer");
+    case UpdateType::DownloadingFile:
+      return Slice("downloading_file");
     default:
       UNREACHABLE();
       return Slice();
@@ -8742,6 +8772,11 @@ void Client::add_new_custom_query(object_ptr<td_api::updateNewCustomQuery> &&que
   int32 timeout = query->timeout_ <= 0 ? 86400 : query->timeout_;
   add_update(UpdateType::CustomQuery, JsonCustomJson(query->data_), timeout, 0);
 }
+
+void Client::add_update_downloading_file(object_ptr<td_api::file> file) {
+  CHECK(file != nullptr);
+  add_update(UpdateType::DownloadingFile, JsonDownloadingFile(file.get(), this), 150, file->remote_->uploaded_size_);
+};
 
 td::int32 Client::choose_added_member_id(const td_api::messageChatAddMembers *message_add_members) const {
   CHECK(message_add_members != nullptr);
