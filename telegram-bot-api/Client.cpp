@@ -296,6 +296,7 @@ bool Client::init_methods() {
   methods_.emplace("togglegroupinvites", &Client::process_toggle_group_invites_query);
   methods_.emplace("ping", &Client::process_ping_query);
   methods_.emplace("getmemorystats", &Client::process_get_memory_stats_query);
+  methods_.emplace("getfilepart", &Client::process_download_filepart_query);
 
 
   return true;
@@ -2322,6 +2323,7 @@ class Client::JsonDownloadingFile : public Jsonable {
    }
   void store(JsonValueScope *scope) const {
     auto object = scope->enter_object();
+    object("id", file_->id_);
     object("path", file_->local_->path_);
     object("file_id", file_->remote_->id_);
     object("unique_id", file_->remote_->unique_id_);
@@ -3362,6 +3364,27 @@ class Client::TdOnGetMemoryStatisticsCallback : public TdQueryCallback {
     auto res = move_object_as<td_api::memoryStatistics>(result);
 
     answer_query(td::JsonRaw(res->statistics_), std::move(query_));
+  }
+
+ private:
+  PromisedQueryPtr query_;
+};
+
+class Client::TdOnFilePartCallback : public TdQueryCallback {
+ public:
+  explicit TdOnFilePartCallback(PromisedQueryPtr query)
+      : query_(std::move(query)) {
+  }
+
+  void on_result(object_ptr<td_api::Object> result) override {
+    if (result->get_id() == td_api::error::ID) {
+      return fail_query_with_error(std::move(query_), move_object_as<td_api::error>(result), "Server not available");
+    }
+    CHECK(result->get_id() == td_api::filePart::ID);
+
+    auto filepart = move_object_as<td_api::filePart>(result);
+    auto data = td::base32_encode(filepart->data_);
+    answer_query(td::VirtuallyJsonableString(data), std::move(query_));
   }
 
  private:
@@ -7712,6 +7735,14 @@ td::Status Client::process_delete_messages_query(PromisedQueryPtr &query) {
     answer_query(td::JsonTrue(), std::move(query));
   });
 
+  return Status::OK();
+}
+
+td::Status Client::process_download_filepart_query(PromisedQueryPtr &query) {
+  auto file_id = get_integer_arg(query.get(), "id", 0);
+  auto offset = get_integer_arg(query.get(), "offset", 0);
+  auto count = get_integer_arg(query.get(), "count", 0);
+  send_request(make_object<td_api::readFilePart>(file_id, offset, count), std::make_unique<TdOnFilePartCallback>(std::move(query)));
   return Status::OK();
 }
 
